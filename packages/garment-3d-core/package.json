@@ -1,0 +1,24 @@
+{
+  "name": "@garment-3d/core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "vite build",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0"
+  },
+  "dependencies": {
+    "@garment-3d/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "three": "^0.171.0",
+    "@types/three": "^0.171.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.3.0"
+  }
+}

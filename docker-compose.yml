@@ -1,0 +1,38 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  model-server:
+    build:
+      context: ./services/model-server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DEVICE=cuda
+      - MODEL_NAME=tencent/Hunyuan3D-2
+      - OUTPUT_DIR=/tmp/hunyuan3d_outputs
+    volumes:
+      - model-cache:/root/.cache/huggingface
+      - model-outputs:/tmp/hunyuan3d_outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+volumes:
+  redis-data:
+  model-cache:
+  model-outputs:
