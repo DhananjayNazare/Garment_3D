@@ -15,19 +15,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DEVICE=cuda
+      - DEVICE=cpu
       - MODEL_NAME=tencent/Hunyuan3D-2
       - OUTPUT_DIR=/tmp/hunyuan3d_outputs
     volumes:
       - model-cache:/root/.cache/huggingface
       - model-outputs:/tmp/hunyuan3d_outputs
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     restart: unless-stopped
     depends_on:
       - redis

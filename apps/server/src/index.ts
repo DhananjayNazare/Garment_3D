@@ -16,7 +16,12 @@ const server = Fastify({
 async function start() {
   // Register plugins
   await server.register(cors, {
-    origin: ["http://localhost:5173"], // Vite dev server
+    // Allow any localhost port in the 5173-5189 range (Vite auto-increments on port conflicts)
+    origin: (origin, cb) => {
+      const allowed =
+        !origin || /^http:\/\/localhost:(517[3-9]|518[0-9])$/.test(origin);
+      cb(null, allowed);
+    },
     methods: ["GET", "POST", "DELETE"],
   });
 
@@ -52,6 +57,22 @@ async function start() {
 
   // Health check
   server.get("/api/health", async () => ({ status: "ok" }));
+
+  // Model-server status — exposes whether GPU inference or mock mode is active
+  const HUNYUAN_URL = process.env.HUNYUAN_URL ?? "http://localhost:8000";
+  server.get("/api/model-status", async () => {
+    try {
+      const res = await fetch(`${HUNYUAN_URL}/health`, {
+        signal: AbortSignal.timeout(2000),
+      });
+      if (!res.ok) throw new Error("non-ok response");
+      const data = (await res.json()) as { status: string; mock?: boolean };
+      const mode = data.mock ? "mock-server" : "gpu";
+      return { reachable: true, mock: data.mock ?? false, mode };
+    } catch {
+      return { reachable: false, mock: true, mode: "offline" };
+    }
+  });
 
   // Start server
   const port = parseInt(process.env.PORT ?? "3001", 10);

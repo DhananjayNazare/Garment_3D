@@ -1,9 +1,14 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Environment, Center, useGLTF } from "@react-three/drei";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 import { FabricMaterial, UVMapper } from "@garment-3d/core";
-import { useProjectStore, useFabricStore, useViewportStore } from "../../stores";
+import {
+  useProjectStore,
+  useFabricStore,
+  useViewportStore,
+} from "../../stores";
 
 /** Syncs R3F's Three.js objects into the Zustand store so components outside Canvas can use them */
 function ViewportBridge() {
@@ -19,12 +24,16 @@ function ViewportBridge() {
 
 function GarmentModel({ url }: { url: string }) {
   const { scene } = useGLTF(url);
+  // Bug 1 fix: useGLTF returns a shared cached scene. Clone before mutating
+  // geometry/materials so we don't corrupt the cache for future loads.
+  const clonedScene = useMemo(() => SkeletonUtils.clone(scene), [scene]);
   const groupRef = useRef<THREE.Group>(null);
   const fabricMatRef = useRef<FabricMaterial | null>(null);
   const { invalidate } = useThree();
 
   const currentFabric = useFabricStore((s) => s.currentFabric);
   const fabricVersion = useFabricStore((s) => s.fabricVersion);
+  const setFabricApplyState = useFabricStore((s) => s.setFabricApplyState);
 
   // Real-time slider values
   const sheen = useFabricStore((s) => s.sheen);
@@ -37,7 +46,7 @@ function GarmentModel({ url }: { url: string }) {
 
   useEffect(() => {
     // Process meshes: compute tangents, enable shadows, fix UVs, ensure visibility
-    scene.traverse((child) => {
+    clonedScene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
@@ -45,7 +54,9 @@ function GarmentModel({ url }: { url: string }) {
         // Ensure default material is visible from both sides
         if (child.material) {
           if (Array.isArray(child.material)) {
-            child.material.forEach((m) => { m.side = THREE.DoubleSide; });
+            child.material.forEach((m) => {
+              m.side = THREE.DoubleSide;
+            });
           } else {
             child.material.side = THREE.DoubleSide;
           }
@@ -59,7 +70,10 @@ function GarmentModel({ url }: { url: string }) {
         // Auto-fix UVs: apply triplanar fallback if UVs are missing or poor
         const usedFallback = UVMapper.ensureUsableUVs(child);
         if (usedFallback) {
-          console.log("[GarmentViewport] Applied triplanar UV fallback to mesh:", child.name || "(unnamed)");
+          console.log(
+            "[GarmentViewport] Applied triplanar UV fallback to mesh:",
+            child.name || "(unnamed)",
+          );
         }
 
         if (geo.attributes.uv && !geo.attributes.tangent) {
@@ -71,7 +85,10 @@ function GarmentModel({ url }: { url: string }) {
         }
       }
     });
-  }, [scene]);
+    // Bug 2 fix: trigger a render now that mesh processing is done.
+    // Required because frameloop="demand" only renders on explicit invalidate().
+    invalidate();
+  }, [clonedScene, invalidate]);
 
   // Apply fabric material when user clicks "Apply Fabric"
   useEffect(() => {
@@ -86,22 +103,30 @@ function GarmentModel({ url }: { url: string }) {
         fabricMatRef.current = new FabricMaterial();
       }
 
+      setFabricApplyState(true, null);
+
       try {
-        const material =
-          await fabricMatRef.current.createFromDescriptor(currentFabric!);
+        const material = await fabricMatRef.current.createFromDescriptor(
+          currentFabric!,
+        );
 
         if (cancelled) return;
 
         // Apply to all meshes in the scene
-        scene.traverse((child) => {
+        clonedScene.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.material = material;
           }
         });
 
         invalidate();
+        setFabricApplyState(false, null);
       } catch (err) {
+        if (cancelled) return;
+        const message =
+          err instanceof Error ? err.message : "Failed to apply fabric";
         console.error("Failed to apply fabric material:", err);
+        setFabricApplyState(false, message);
       }
     }
 
@@ -110,7 +135,13 @@ function GarmentModel({ url }: { url: string }) {
     return () => {
       cancelled = true;
     };
-  }, [currentFabric, fabricVersion, scene, invalidate]);
+  }, [
+    currentFabric,
+    fabricVersion,
+    clonedScene,
+    invalidate,
+    setFabricApplyState,
+  ]);
 
   // Real-time slider updates (no texture rebuild, just material property changes)
   useEffect(() => {
@@ -158,7 +189,7 @@ function GarmentModel({ url }: { url: string }) {
 
   return (
     <Center>
-      <primitive ref={groupRef} object={scene} />
+      <primitive ref={groupRef} object={clonedScene} />
     </Center>
   );
 }

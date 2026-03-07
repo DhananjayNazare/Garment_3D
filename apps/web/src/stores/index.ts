@@ -88,14 +88,70 @@ const PRESET_DEFAULTS: Record<
     textureScale: number;
   }
 > = {
-  cotton: { sheen: 0.2, sheenRoughness: 0.8, roughness: 0.9, normalStrength: 0.6, anisotropy: 0.1, textureScale: 4 },
-  silk: { sheen: 1.0, sheenRoughness: 0.2, roughness: 0.3, normalStrength: 0.2, anisotropy: 0.7, textureScale: 6 },
-  denim: { sheen: 0.15, sheenRoughness: 0.9, roughness: 0.95, normalStrength: 1.0, anisotropy: 0.3, textureScale: 8 },
-  linen: { sheen: 0.25, sheenRoughness: 0.7, roughness: 0.85, normalStrength: 0.8, anisotropy: 0.2, textureScale: 5 },
-  velvet: { sheen: 1.0, sheenRoughness: 0.5, roughness: 0.7, normalStrength: 0.4, anisotropy: 0.0, textureScale: 3 },
-  wool: { sheen: 0.3, sheenRoughness: 0.6, roughness: 0.92, normalStrength: 0.9, anisotropy: 0.15, textureScale: 4 },
-  satin: { sheen: 0.9, sheenRoughness: 0.15, roughness: 0.25, normalStrength: 0.15, anisotropy: 0.8, textureScale: 5 },
-  custom: { sheen: 0.3, sheenRoughness: 0.5, roughness: 0.7, normalStrength: 0.5, anisotropy: 0.2, textureScale: 4 },
+  cotton: {
+    sheen: 0.2,
+    sheenRoughness: 0.8,
+    roughness: 0.9,
+    normalStrength: 0.6,
+    anisotropy: 0.1,
+    textureScale: 4,
+  },
+  silk: {
+    sheen: 1.0,
+    sheenRoughness: 0.2,
+    roughness: 0.3,
+    normalStrength: 0.2,
+    anisotropy: 0.7,
+    textureScale: 6,
+  },
+  denim: {
+    sheen: 0.15,
+    sheenRoughness: 0.9,
+    roughness: 0.95,
+    normalStrength: 1.0,
+    anisotropy: 0.3,
+    textureScale: 8,
+  },
+  linen: {
+    sheen: 0.25,
+    sheenRoughness: 0.7,
+    roughness: 0.85,
+    normalStrength: 0.8,
+    anisotropy: 0.2,
+    textureScale: 5,
+  },
+  velvet: {
+    sheen: 1.0,
+    sheenRoughness: 0.5,
+    roughness: 0.7,
+    normalStrength: 0.4,
+    anisotropy: 0.0,
+    textureScale: 3,
+  },
+  wool: {
+    sheen: 0.3,
+    sheenRoughness: 0.6,
+    roughness: 0.92,
+    normalStrength: 0.9,
+    anisotropy: 0.15,
+    textureScale: 4,
+  },
+  satin: {
+    sheen: 0.9,
+    sheenRoughness: 0.15,
+    roughness: 0.25,
+    normalStrength: 0.15,
+    anisotropy: 0.8,
+    textureScale: 5,
+  },
+  custom: {
+    sheen: 0.3,
+    sheenRoughness: 0.5,
+    roughness: 0.7,
+    normalStrength: 0.5,
+    anisotropy: 0.2,
+    textureScale: 4,
+  },
 };
 
 interface FabricState {
@@ -121,6 +177,11 @@ interface FabricState {
   applyFabric: () => void;
   updateParameter: (key: string, value: number) => void;
   reset: () => void;
+
+  // Async apply state (set by GarmentViewport during fabric apply)
+  isFabricApplying: boolean;
+  fabricApplyError: string | null;
+  setFabricApplyState: (applying: boolean, error: string | null) => void;
 }
 
 export const useFabricStore = create<FabricState>((set, get) => ({
@@ -135,6 +196,8 @@ export const useFabricStore = create<FabricState>((set, get) => ({
   anisotropy: 0.1,
   textureScale: 4,
   textureRotation: 0,
+  isFabricApplying: false,
+  fabricApplyError: null,
 
   setPresetType: (preset) => {
     const defaults = PRESET_DEFAULTS[preset];
@@ -168,6 +231,9 @@ export const useFabricStore = create<FabricState>((set, get) => ({
 
   updateParameter: (key, value) => set({ [key]: value }),
 
+  setFabricApplyState: (applying, error) =>
+    set({ isFabricApplying: applying, fabricApplyError: error }),
+
   reset: () =>
     set({
       currentFabric: null,
@@ -181,6 +247,8 @@ export const useFabricStore = create<FabricState>((set, get) => ({
       anisotropy: 0.1,
       textureScale: 4,
       textureRotation: 0,
+      isFabricApplying: false,
+      fabricApplyError: null,
     }),
 }));
 

@@ -18,6 +18,13 @@ import io
 from config import HOST, PORT, OUTPUT_DIR, MAX_CONCURRENT
 from hunyuan_worker import generate_3d
 
+# Detect hy3dgen availability once at startup (no model loading)
+try:
+    import hy3dgen  # noqa: F401
+    _HY3DGEN_AVAILABLE = True
+except ImportError:
+    _HY3DGEN_AVAILABLE = False
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -45,7 +52,7 @@ tasks: dict[str, TaskInfo] = {}
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "model": "hunyuan3d-2.1"}
+    return {"status": "ok", "model": "hunyuan3d-2.1", "mock": not _HY3DGEN_AVAILABLE}
 
 
 @app.post("/generate")

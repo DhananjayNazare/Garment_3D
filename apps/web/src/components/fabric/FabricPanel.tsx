@@ -60,6 +60,8 @@ export function FabricPanel({ disabled }: FabricPanelProps) {
     setFabricImageUrl,
     applyFabric,
     updateParameter,
+    isFabricApplying,
+    fabricApplyError,
   } = useFabricStore();
 
   const handleFabricUpload = useCallback(
@@ -197,11 +199,22 @@ export function FabricPanel({ disabled }: FabricPanelProps) {
 
       {/* Apply button */}
       <button
-        className="w-full py-2.5 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+        className="w-full py-2.5 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         onClick={applyFabric}
+        disabled={isFabricApplying}
       >
-        Apply Fabric
+        {isFabricApplying ? (
+          <>
+            <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            Applying...
+          </>
+        ) : (
+          "Apply Fabric"
+        )}
       </button>
+      {fabricApplyError && (
+        <p className="mt-2 text-xs text-red-600">{fabricApplyError}</p>
+      )}
     </div>
   );
 }
