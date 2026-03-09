@@ -18,8 +18,10 @@ services:
       - DEVICE=cpu
       - MODEL_NAME=tencent/Hunyuan3D-2
       - OUTPUT_DIR=/tmp/hunyuan3d_outputs
+      - SHAP_E_STEPS=32
+      - SHAP_E_GUIDANCE_SCALE=3.0
     volumes:
-      - model-cache:/root/.cache/huggingface
+      - model-cache:/root/.cache
       - model-outputs:/tmp/hunyuan3d_outputs
     restart: unless-stopped
     depends_on:

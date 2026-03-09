@@ -93,7 +93,6 @@ function GarmentModel({ url }: { url: string }) {
   // Apply fabric material when user clicks "Apply Fabric"
   useEffect(() => {
     if (!currentFabric || fabricVersion === 0) return;
-    if (!currentFabric.diffuse) return;
 
     let cancelled = false;
 
@@ -286,7 +285,7 @@ export function GarmentViewport() {
       )}
 
       {/* Loading overlay */}
-      {generationStatus === "processing" && (
+      {(generationStatus === "processing" || generationStatus === "pending") && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-lg px-6 py-4 text-center">
             <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />

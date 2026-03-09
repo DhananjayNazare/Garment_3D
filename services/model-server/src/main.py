@@ -52,7 +52,19 @@ tasks: dict[str, TaskInfo] = {}
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "model": "hunyuan3d-2.1", "mock": not _HY3DGEN_AVAILABLE}
+    if _HY3DGEN_AVAILABLE:
+        mode = "hunyuan"
+    else:
+        mode = "shap-e"
+    return {"status": "ok", "model": "hunyuan3d-2.1", "mock": False, "mode": mode}
+
+
+@app.on_event("startup")
+async def preload_models():
+    """Warm up Shap-E models at startup to avoid cold-start delay on first request."""
+    if not _HY3DGEN_AVAILABLE:
+        from shap_e_generator import get_shap_e_models
+        get_shap_e_models()
 
 
 @app.post("/generate")
@@ -122,6 +134,8 @@ async def get_model(task_id: str):
     if task.status != TaskStatus.COMPLETED:
         raise HTTPException(400, f"Task is {task.status}, not completed")
 
+    if task.model_path is None:
+        raise HTTPException(500, "Model path not set")
     model_path = Path(task.model_path)
     if not model_path.exists():
         raise HTTPException(404, "Model file not found")

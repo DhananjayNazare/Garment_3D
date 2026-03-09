@@ -257,16 +257,35 @@ export class TextureProcessor {
   async loadSeamlessTexture(url: string, repeat = 4, blendWidth = 0.15): Promise<THREE.Texture> {
     const img = await this.loadImage(url);
     const seamlessCanvas = this.makeSeamless(img, blendWidth);
+    return this.canvasToTexture(seamlessCanvas, repeat, THREE.SRGBColorSpace);
+  }
 
-    const texture = new THREE.CanvasTexture(seamlessCanvas);
+  /** Wrap an existing canvas as a tiling Three.js texture. */
+  canvasToTexture(
+    canvas: HTMLCanvasElement,
+    repeat = 4,
+    colorSpace: THREE.ColorSpace = THREE.SRGBColorSpace,
+  ): THREE.Texture {
+    const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(repeat, repeat);
-    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.colorSpace = colorSpace;
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     return texture;
+  }
+
+  /** Create a solid-color canvas, used as a neutral placeholder diffuse texture. */
+  neutralCanvas(color = "#cccccc", size = 64): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, size, size);
+    return canvas;
   }
 
   /**

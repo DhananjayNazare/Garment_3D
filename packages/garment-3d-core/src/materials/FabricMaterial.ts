@@ -41,16 +41,33 @@ export class FabricMaterial {
 
     const repeat = descriptor.scale ?? preset.textureRepeat;
 
-    // Load diffuse and make seamless for clean tiling
-    const diffuseTexture = await this.textureProcessor.loadSeamlessTexture(
-      descriptor.diffuse,
+    this.material.dispose();
+
+    // Preset-only mode: no diffuse image uploaded — apply PBR parameters directly
+    if (!descriptor.diffuse) {
+      this.material = new THREE.MeshPhysicalMaterial({
+        color: 0xdddddd,
+        roughness: descriptor.roughness ?? preset.roughness,
+        metalness: preset.metalness,
+        sheen: descriptor.sheen ?? preset.sheen,
+        sheenRoughness: descriptor.sheenRoughness ?? preset.sheenRoughness,
+        sheenColor: new THREE.Color(preset.sheenColor),
+        anisotropy: descriptor.anisotropy ?? preset.anisotropy,
+        side: THREE.DoubleSide,
+      });
+      return this.material;
+    }
+
+    // Full texture pipeline when a diffuse image is provided.
+    // Load the image once, build the seamless canvas, then derive all maps from it.
+    const img = await this.textureProcessor.loadImage(descriptor.diffuse);
+    const seamlessCanvas = this.textureProcessor.makeSeamless(img);
+    const diffuseTexture = this.textureProcessor.canvasToTexture(
+      seamlessCanvas,
       repeat,
+      THREE.SRGBColorSpace,
     );
     this.currentTextures.push(diffuseTexture);
-
-    // Get the seamless canvas for generating derived PBR maps
-    const seamlessImg = await this.textureProcessor.loadImage(descriptor.diffuse);
-    const seamlessCanvas = this.textureProcessor.makeSeamless(seamlessImg);
 
     // Load or generate normal map
     let normalMap: THREE.Texture;
@@ -93,7 +110,6 @@ export class FabricMaterial {
     }
 
     // Create the PBR material
-    this.material.dispose();
     this.material = new THREE.MeshPhysicalMaterial({
       map: diffuseTexture,
       normalMap,

@@ -1,9 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useProjectStore } from "../../stores";
 
 export function UploadPanel() {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // Holds a cancel function for any in-flight SSE connection or poll loop
+  const cancelActiveRef = useRef<(() => void) | null>(null);
   const {
     uploadedImageUrl,
     generationStatus,
@@ -14,12 +16,54 @@ export function UploadPanel() {
     updateGenerationStatus,
   } = useProjectStore();
 
+  const pollStatus = useCallback(
+    (jobId: string): (() => void) => {
+      let cancelled = false;
+      const cancel = () => {
+        cancelled = true;
+      };
+
+      const poll = async () => {
+        if (cancelled) return;
+        try {
+          const res = await fetch(`/api/generate/${jobId}`);
+          const data = await res.json();
+          if (!cancelled) {
+            updateGenerationStatus(
+              data.status,
+              data.progress ?? 0,
+              data.modelUrl,
+              data.error,
+            );
+          }
+
+          if (
+            !cancelled &&
+            data.status !== "completed" &&
+            data.status !== "failed"
+          ) {
+            setTimeout(poll, 2000);
+          }
+        } catch {
+          if (!cancelled) setTimeout(poll, 5000);
+        }
+      };
+      poll();
+      return cancel;
+    },
+    [updateGenerationStatus],
+  );
+
   const handleFile = useCallback(
     async (file: File) => {
       if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
         alert("Please upload a JPEG, PNG, or WebP image.");
         return;
       }
+
+      // Cancel any previous SSE connection or poll loop before starting a new upload
+      cancelActiveRef.current?.();
+      cancelActiveRef.current = null;
 
       setIsUploading(true);
 
@@ -59,6 +103,10 @@ export function UploadPanel() {
 
         // Poll for status via SSE
         const eventSource = new EventSource(`/api/generate/${jobId}/sse`);
+
+        // Store cancel so a subsequent upload can close this stream
+        cancelActiveRef.current = () => eventSource.close();
+
         eventSource.onmessage = (event) => {
           const data = JSON.parse(event.data);
           updateGenerationStatus(
@@ -70,13 +118,14 @@ export function UploadPanel() {
 
           if (data.status === "completed" || data.status === "failed") {
             eventSource.close();
+            cancelActiveRef.current = null;
           }
         };
 
         eventSource.onerror = () => {
           eventSource.close();
-          // Fallback to polling
-          pollStatus(jobId);
+          // Fallback to polling; store its cancel fn
+          cancelActiveRef.current = pollStatus(jobId);
         };
       } catch (err) {
         console.error("Upload/generation error:", err);
@@ -87,32 +136,7 @@ export function UploadPanel() {
         setIsUploading(false);
       }
     },
-    [setUploadedImage, setGenerationJob, updateGenerationStatus],
-  );
-
-  const pollStatus = useCallback(
-    async (jobId: string) => {
-      const poll = async () => {
-        try {
-          const res = await fetch(`/api/generate/${jobId}`);
-          const data = await res.json();
-          updateGenerationStatus(
-            data.status,
-            data.progress ?? 0,
-            data.modelUrl,
-            data.error,
-          );
-
-          if (data.status !== "completed" && data.status !== "failed") {
-            setTimeout(poll, 2000);
-          }
-        } catch {
-          setTimeout(poll, 5000);
-        }
-      };
-      poll();
-    },
-    [updateGenerationStatus],
+    [pollStatus, setUploadedImage, setGenerationJob, updateGenerationStatus],
   );
 
   const handleDrop = useCallback(
@@ -153,7 +177,7 @@ export function UploadPanel() {
         className={`
           border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
           ${isDragging ? "border-primary-500 bg-primary-50" : "border-gray-300 hover:border-gray-400"}
-          ${isUploading ? "opacity-50 pointer-events-none" : ""}
+          ${isUploading || generationStatus === "pending" || generationStatus === "processing" ? "opacity-50 pointer-events-none" : ""}
         `}
         onDrop={handleDrop}
         onDragOver={handleDragOver}

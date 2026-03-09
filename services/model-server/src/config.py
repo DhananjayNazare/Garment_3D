@@ -16,3 +16,8 @@ DEFAULT_OCTREE_RESOLUTION = int(os.getenv("DEFAULT_OCTREE_RESOLUTION", "256"))
 
 # Maximum concurrent tasks
 MAX_CONCURRENT = int(os.getenv("MAX_CONCURRENT", "1"))
+
+# Shap-E config (used when hy3dgen is not available)
+# 32 steps gives good quality/speed balance on CPU (~2-3 min per model)
+SHAP_E_STEPS = int(os.getenv("SHAP_E_STEPS", "32"))
+SHAP_E_GUIDANCE_SCALE = float(os.getenv("SHAP_E_GUIDANCE_SCALE", "3.0"))

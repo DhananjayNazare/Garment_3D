@@ -66,8 +66,8 @@ async function start() {
         signal: AbortSignal.timeout(2000),
       });
       if (!res.ok) throw new Error("non-ok response");
-      const data = (await res.json()) as { status: string; mock?: boolean };
-      const mode = data.mock ? "mock-server" : "gpu";
+      const data = (await res.json()) as { status: string; mock?: boolean; mode?: string };
+      const mode = data.mode ?? (data.mock ? "mock-server" : "gpu");
       return { reachable: true, mock: data.mock ?? false, mode };
     } catch {
       return { reachable: false, mock: true, mode: "offline" };

@@ -67,7 +67,11 @@ export const generateRoutes: FastifyPluginAsync = async (fastify) => {
           const imageBuffer = await readFile(imagePath);
           jobStatuses.set(jobId, { status: "processing", progress: 20 });
 
-          const taskId = await hunyuan.submit(imageBuffer, `${imageId}.png`);
+          const imageExt = imagePath.split(".").pop() ?? "png";
+          const taskId = await hunyuan.submit(
+            imageBuffer,
+            `${imageId}.${imageExt}`,
+          );
           jobStatuses.set(jobId, { status: "processing", progress: 30 });
 
           let status = await hunyuan.getStatus(taskId);

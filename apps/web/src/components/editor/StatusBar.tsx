@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useProjectStore } from "../../stores";
 
-type ModelMode = "gpu" | "mock-server" | "offline" | null;
+type ModelMode = "gpu" | "mock-server" | "offline" | "depth" | "shap-e" | null;
 
 interface ModelStatus {
   reachable: boolean;
   mock: boolean;
-  mode: "gpu" | "mock-server" | "offline";
+  mode: "gpu" | "mock-server" | "offline" | "depth" | "shap-e";
 }
 
 export function StatusBar() {
@@ -36,6 +36,16 @@ export function StatusBar() {
       dot: "bg-emerald-400",
       label: "GPU",
       title: "Hunyuan3D-2.1 — real inference active",
+    },
+    depth: {
+      dot: "bg-cyan-400",
+      label: "Depth",
+      title: "Depth-based relief mesh generation (MiDaS, CPU)",
+    },
+    "shap-e": {
+      dot: "bg-violet-400",
+      label: "Shap-E",
+      title: "Shap-E (OpenAI) — CPU-based 3D generation, ~2-3 min per model",
     },
     "mock-server": {
       dot: "bg-amber-400",
@@ -86,9 +96,13 @@ export function StatusBar() {
               className={
                 modelMode === "gpu"
                   ? "text-emerald-400"
-                  : modelMode === "offline"
-                    ? "text-red-400"
-                    : "text-amber-400"
+                  : modelMode === "depth"
+                    ? "text-cyan-400"
+                    : modelMode === "shap-e"
+                      ? "text-violet-400"
+                      : modelMode === "offline"
+                        ? "text-red-400"
+                        : "text-amber-400"
               }
             >
               {modeBadge[modelMode].label}
